@@ -46,4 +46,39 @@ public class JwtUtils {
                 .signWith(key)
                 .compact();
     }
+    
+    /**
+     * Extrait l'email (subject) contenu dans le token.
+     */
+    public String extractEmail(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    /**
+     * Extrait le rôle contenu dans le token.
+     */
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    /**
+     * Vérifie que le token est valide : signature correcte et non expiré.
+     */
+    public boolean validateToken(String token) {
+        try {
+            extractAllClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private Claims extractAllClaims(String token) {
+        SecretKey key = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
 }
