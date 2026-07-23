@@ -21,19 +21,26 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final EmailService emailService;
+    private final EmailTemplates emailTemplates;
 
-    // Injection par constructeur (recommandée pour la testabilité)
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
+    // Injection par constructeur
+    public AuthService(UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtils jwtUtils,
+            EmailService emailService,
+            EmailTemplates emailTemplates) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
+        this.emailService = emailService;
+        this.emailTemplates = emailTemplates;
     }
 
     /**
      * Enregistre un nouvel utilisateur dans le système après vérification des
      * doublons.
-     * Le mot de passe est automatiquement haché via BCrypt pour des raisons de
-     * sécurité.
+     * Le mot de passe est haché et un e-mail de confirmation est envoyé.
      *
      * @param request Les données d'inscription envoyées par le Frontend.
      * @return Un message de confirmation de succès.
@@ -50,11 +57,15 @@ public class AuthService {
         User newUser = new User(
                 request.getName(),
                 request.getEmail(),
-                passwordEncoder.encode(request.getPassword()) // Hachage BCrypt
-        );
+                passwordEncoder.encode(request.getPassword()));
 
         // 3. Sauvegarde en base de données PostgreSQL
-        userRepository.save(newUser);
+        User savedUser = userRepository.save(newUser);
+
+        // 4. Envoi de l'e-mail de confirmation via Brevo
+        String emailSubject = "Bienvenue sur Brain-Booster ! 🚀";
+        String emailContent = emailTemplates.buildWelcomeEmail(savedUser.getName());
+        emailService.sendHtmlEmail(savedUser.getEmail(), emailSubject, emailContent);
 
         return "Utilisateur enregistré avec succès !";
     }
