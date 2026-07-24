@@ -16,11 +16,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/**
- * Configuration principale de la sécurité de l'application.
- * Définit les règles d'accès aux endpoints de l'API et configure l'encodeur de
- * mots de passe.
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
