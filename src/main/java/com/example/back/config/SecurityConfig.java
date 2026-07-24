@@ -48,52 +48,63 @@ public class SecurityConfig {
     /**
      * Configuration CORS pour autoriser les requêtes provenant du frontend React.
      */
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Autorise les ports de développement React (Vite / CRA)
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173", "http://localhost:3000"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
+   @Bean
+public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration configuration = new CorsConfiguration();
+    
+    // Autorise explicitement le frontend Vercel ainsi que les environnements locaux
+    configuration.setAllowedOrigins(List.of(
+        "https://frontbrainbooster.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000"
+    ));
+    
+    // En cas de déploiements de prévisualisation Vercel (URLs dynamiques), décommenter la ligne suivante :
+    // configuration.setAllowedOriginPatterns(List.of("https://*.vercel.app", "http://localhost:*"));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
+    configuration.setExposedHeaders(List.of("Authorization"));
+    configuration.setAllowCredentials(true);
+    configuration.setMaxAge(3600L); // Maintient la réponse Preflight (OPTIONS) en cache 1 heure
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+}
 
     /**
      * Définit la chaîne de filtres de sécurité HTTP.
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                // Active la configuration CORS
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // Désactive la protection CSRF (inutile pour une API REST Stateless / JWT)
-                .csrf(csrf -> csrf.disable())
-                // Configuration des accès aux endpoints
-                .authorizeHttpRequests(auth -> auth
-                        // Routes publiques d'authentification
-                        .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()
-                        // Endpoints d'emails publics (OTP, notification, etc.)
-                        .requestMatchers("/api/emails/**").permitAll()
-                        // Documentation Swagger UI & OpenAPI
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/api-docs/**",
-                                "/v3/api-docs/**"
-                        ).permitAll()
-                        // Exige l'authentification pour toutes les autres requêtes
-                        .anyRequest().authenticated())
-                // Gestion de session Stateless
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Injection du filtre JWT avant le filtre d'authentification standard
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+            // 1. Activer la configuration CORS
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            
+            // 2. Désactiver le CSRF (API REST / Stateless)
+            .csrf(csrf -> csrf.disable())
+            
+            // 3. Autoriser les requêtes Preflight OPTIONS et les routes publiques
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // Autoriser toutes les requêtes Preflight
+                    .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()
+                    .requestMatchers("/api/emails/**").permitAll()
+                    .requestMatchers(
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/api-docs/**",
+                            "/v3/api-docs/**"
+                    ).permitAll()
+                    .anyRequest().authenticated())
+            
+            // 4. Mode Stateless
+            .sessionManagement(session -> session
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            
+            // 5. Filtre JWT
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+    return http.build();
+}
 }
