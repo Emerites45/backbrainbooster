@@ -17,10 +17,12 @@
     <properties>
         <java.version>17</java.version>
         <jjwt.version>0.12.5</jjwt.version>
+        <brevo.version>1.0.0</brevo.version>
+        <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
     <dependencies>
-        <!-- Remplacement de webservices par WEB pour faire du REST JSON -->
+        <!-- Web & REST -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -57,6 +59,7 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Tooling & Base de données -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
@@ -73,6 +76,33 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Envoi de mail JavaMail classique -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- Gestion du fichier .env pour protéger les clés d'API et secrets -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
+        <!-- SDK Officiel Brevo pour l'API REST d'envoi d'emails -->
+       <dependency>
+             <groupId>com.sendinblue</groupId>
+             <artifactId>sib-api-v3-sdk</artifactId>
+             <version>7.0.0</version>
+        </dependency>
+
+        <!-- Swagger UI & OpenAPI 3 Documentation -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- Tests -->

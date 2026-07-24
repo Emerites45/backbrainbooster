@@ -69,16 +69,23 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 // Configuration des règles d'accès aux URLs
                 .authorizeHttpRequests(auth -> auth
-                        // On autorise explicitement toutes les variantes de routes d'authentification
+                        // Routes publiques d'authentification
                         .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()
-                        // Toutes les autres requêtes nécessiteront une authentification
+                        // Autorisation d'accès aux endpoints d'emails (OTP, Welcome, etc.)
+                        .requestMatchers("/api/emails/**").permitAll()
+                        // Autorisation d'accès à la documentation Swagger UI & OpenAPI
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/api-docs/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+                        // Toutes les autres requêtes nécessiteront une authentification JWT
                         .anyRequest().authenticated())
-                // Politique de session Stateless (aucune session HTTP côté serveur, tout passe
-                // par le JWT)
+                // Politique de session Stateless
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Insère notre filtre JWT avant le filtre standard de Spring Security,
-                // pour qu'il authentifie la requête à partir du token avant tout le reste
+                // Insère notre filtre JWT avant le filtre standard de Spring Security
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
