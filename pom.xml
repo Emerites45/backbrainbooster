@@ -19,6 +19,7 @@
         <jjwt.version>0.12.5</jjwt.version>
     </properties>
 
+
     <dependencies>
         <!-- Remplacement de webservices par WEB pour faire du REST JSON -->
         <dependency>
@@ -37,6 +38,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+
+		<dependency>
+    		<groupId>org.springframework.boot</groupId>
+    		<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 
         <!-- Sécurité : Dépendances pour générer et lire les Jetons JWT -->
         <dependency>
@@ -86,6 +92,20 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- 1. Support du fichier .env -->
+<dependency>
+    <groupId>io.github.cdimascio</groupId>
+    <artifactId>java-dotenv</artifactId>
+    <version>5.2.2</version>
+</dependency>
+
+<!-- 2. Documentation Swagger / OpenAPI -->
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.5.0</version>
+</dependency>
     </dependencies>
 
     <build>
