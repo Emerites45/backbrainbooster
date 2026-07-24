@@ -57,4 +57,8 @@ public class EmailService {
             System.err.println("Échec de l'envoi de l'e-mail à " + to + " : " + e.getMessage());
         }
     }
+
+    public void generateAndSendOtp(String email) {
+    // ... logique d'envoi OTP
+}
 }
