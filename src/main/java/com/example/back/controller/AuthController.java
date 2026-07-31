@@ -1,6 +1,7 @@
 package com.example.back.controller;
 
 import com.example.back.dto.request.LoginRequest;
+import com.example.back.dto.request.ResetPasswordRequest;
 import com.example.back.dto.request.SignupRequest;
 import com.example.back.dto.response.AuthResponse;
 import com.example.back.service.AuthService;
@@ -62,6 +63,26 @@ public class AuthController {
         } catch (RuntimeException e) {
             // Renvoie une erreur 401 (Unauthorized) si les identifiants sont invalides
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestParam String email) {
+        try {
+            String message = authService.forgotPassword(email);
+            return ResponseEntity.ok(message);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            String message = authService.resetPassword(request);
+            return ResponseEntity.ok(message);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 }

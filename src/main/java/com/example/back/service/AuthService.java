@@ -1,14 +1,17 @@
 package com.example.back.service;
 
 import com.example.back.dto.request.LoginRequest;
+import com.example.back.dto.request.ResetPasswordRequest;
 import com.example.back.dto.request.SignupRequest;
 import com.example.back.dto.response.AuthResponse;
 import com.example.back.model.User;
 import com.example.back.repository.UserRepository;
 import com.example.back.security.JwtUtils;
+import com.example.back.util.OtpGeneratorUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.ZonedDateTime;
 
 /**
  * Service gérant toute la logique métier liée à l'authentification des
@@ -23,18 +26,22 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
     private final EmailTemplates emailTemplates;
+    private final OtpGeneratorUtil otpGeneratorUtil;
+    
 
     // Injection par constructeur
     public AuthService(UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtUtils jwtUtils,
             EmailService emailService,
-            EmailTemplates emailTemplates) {
+            EmailTemplates emailTemplates,
+            OtpGeneratorUtil otpGeneratorUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.emailService = emailService;
         this.emailTemplates = emailTemplates;
+        this.otpGeneratorUtil = otpGeneratorUtil;
     }
 
     /**
@@ -100,5 +107,47 @@ public class AuthService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole());
+ 
+            }
+    @Transactional
+    public String forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Aucun utilisateur trouvé avec cet email."));
+
+        String otp = otpGeneratorUtil.generateOtp(6);
+        user.setPasswordResetToken(otp);
+        user.setPasswordResetTokenExpiry(ZonedDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        String emailSubject = "Réinitialisation du mot de passe Brain-Booster";
+        String emailContent = emailTemplates.buildPasswordResetEmail(user.getName(), otp);
+        emailService.sendHtmlEmail(user.getEmail(), emailSubject, emailContent);
+
+        return "Un lien de réinitialisation a été envoyé à votre adresse email.";
+    }
+
+    @Transactional
+    public String resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Aucun utilisateur trouvé avec cet email."));
+
+        if (user.getPasswordResetToken() == null || user.getPasswordResetTokenExpiry() == null) {
+            throw new RuntimeException("Aucune demande de réinitialisation n'a été trouvée pour cet utilisateur.");
+        }
+
+        if (ZonedDateTime.now().isAfter(user.getPasswordResetTokenExpiry())) {
+            throw new RuntimeException("Le code de réinitialisation a expiré. Veuillez demander un nouveau code.");
+        }
+
+        if (!user.getPasswordResetToken().equals(request.getOtp())) {
+            throw new RuntimeException("Code de réinitialisation invalide.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        userRepository.save(user);
+
+        return "Mot de passe réinitialisé avec succès.";
     }
 }
