@@ -31,6 +31,12 @@ public class User {
     @Column(name = "role")
     private String role = "USER"; // Rôle par défaut
 
+    @Column(name = "password_reset_token")
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_token_expiry", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private ZonedDateTime passwordResetTokenExpiry;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private ZonedDateTime createdAt;
@@ -91,6 +97,22 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getPasswordResetToken() {
+        return passwordResetToken;
+    }
+
+    public void setPasswordResetToken(String passwordResetToken) {
+        this.passwordResetToken = passwordResetToken;
+    }
+
+    public ZonedDateTime getPasswordResetTokenExpiry() {
+        return passwordResetTokenExpiry;
+    }
+
+    public void setPasswordResetTokenExpiry(ZonedDateTime passwordResetTokenExpiry) {
+        this.passwordResetTokenExpiry = passwordResetTokenExpiry;
     }
 
     public ZonedDateTime getCreatedAt() {
