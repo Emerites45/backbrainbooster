@@ -1,10 +1,15 @@
 package com.example.back.service;
 
+import com.example.back.dto.request.ChangePasswordRequest;
 import com.example.back.dto.request.LoginRequest;
 import com.example.back.dto.request.ResetPasswordRequest;
 import com.example.back.dto.request.SignupRequest;
 import com.example.back.dto.response.AuthResponse;
+import com.example.back.dto.response.MeResponse;
+import com.example.back.exception.BusinessException;
+import com.example.back.exception.ResourceNotFoundException;
 import com.example.back.model.User;
+import com.example.back.model.UserStatus;
 import com.example.back.repository.UserRepository;
 import com.example.back.security.JwtUtils;
 import com.example.back.util.OtpGeneratorUtil;
@@ -154,5 +159,47 @@ public class AuthService {
         userRepository.save(user);
 
         return "Mot de passe réinitialisé avec succès.";
+    }
+
+    @Transactional(readOnly = true)
+    public MeResponse getMe(String email) {
+        User user = requireActiveUserByEmail(email);
+        return new MeResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole(),
+                UserStatus.fromUser(user),
+                user.getCreatedAt(),
+                user.getUpdatedAt());
+    }
+
+    @Transactional
+    public String changePassword(String email, ChangePasswordRequest request) {
+        User user = requireActiveUserByEmail(email);
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new BusinessException("Mot de passe actuel incorrect");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new BusinessException("Le nouveau mot de passe doit être différent de l'ancien");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        userRepository.save(user);
+
+        return "Mot de passe modifié avec succès.";
+    }
+
+    private User requireActiveUserByEmail(String email) {
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!user.isActive()) {
+            throw new BusinessException("Compte désactivé");
+        }
+        return user;
     }
 }

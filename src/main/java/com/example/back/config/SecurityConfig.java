@@ -89,8 +89,18 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
             
             // 3. Autoriser les requêtes Preflight OPTIONS et les routes publiques
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // Autoriser toutes les requêtes Preflight
-                    .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                    // Auth publique uniquement (me / change-password restent authentifiés)
+                    .requestMatchers(
+                            "/api/v1/auth/signup",
+                            "/api/v1/auth/login",
+                            "/api/v1/auth/forgot-password",
+                            "/api/v1/auth/reset-password",
+                            "/api/auth/signup",
+                            "/api/auth/login",
+                            "/api/auth/forgot-password",
+                            "/api/auth/reset-password"
+                    ).permitAll()
                     .requestMatchers("/api/emails/**").permitAll()
                     .requestMatchers(
                             "/swagger-ui/**",
