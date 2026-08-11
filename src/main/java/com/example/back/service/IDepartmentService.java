@@ -1,6 +1,7 @@
 package com.example.back.service;
 
 import com.example.back.dto.request.CreateDepartmentRequest;
+import com.example.back.dto.request.UpdateDepartmentRequest;
 import com.example.back.dto.response.DepartmentResponse;
 import com.example.back.dto.response.DepartmentUserResponse;
 import com.example.back.dto.response.PageResponse;
@@ -18,4 +19,8 @@ public interface IDepartmentService {
     PageResponse<DepartmentUserResponse> listDepartmentUsers(Long departmentId, Pageable pageable);
 
     DepartmentResponse createDepartment(CreateDepartmentRequest request);
+
+    DepartmentResponse updateDepartment(Long id, UpdateDepartmentRequest request);
+
+    void deleteDepartment(Long id);
 }

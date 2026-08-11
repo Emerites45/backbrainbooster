@@ -51,6 +51,11 @@ public class DepartmentRepository implements IDepartmentRepository {
     }
 
     @Override
+    public boolean existsByNameIgnoreCaseAndActiveTrueAndIdNot(String name, Long id) {
+        return jpa.existsByNameIgnoreCaseAndActiveTrueAndIdNot(name, id);
+    }
+
+    @Override
     public Department save(Department department) {
         return jpa.save(department);
     }

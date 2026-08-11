@@ -31,4 +31,13 @@ interface DepartmentSpringDataRepository extends JpaRepository<Department, Long>
               AND d.active = true
             """)
     boolean existsByNameIgnoreCaseAndActiveTrue(@Param("name") String name);
+
+    @Query("""
+            SELECT COUNT(d) > 0 FROM Department d
+            WHERE LOWER(d.name) = LOWER(:name)
+              AND d.active = true
+              AND d.id <> :id
+            """)
+    boolean existsByNameIgnoreCaseAndActiveTrueAndIdNot(
+            @Param("name") String name, @Param("id") Long id);
 }

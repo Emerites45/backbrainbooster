@@ -1,7 +1,9 @@
 package com.example.back.service;
 
 import com.example.back.domain.history.ActionHistoryWriter;
+import com.example.back.domain.softdelete.DepartmentActiveSoftDeleteHandler;
 import com.example.back.dto.request.CreateDepartmentRequest;
+import com.example.back.dto.request.UpdateDepartmentRequest;
 import com.example.back.dto.response.DepartmentResponse;
 import com.example.back.dto.response.DepartmentUserResponse;
 import com.example.back.dto.response.PageResponse;
@@ -34,18 +36,21 @@ public class DepartmentService implements IDepartmentService {
     private final UserRepository userRepository;
     private final DepartmentMapper departmentMapper;
     private final ActionHistoryWriter historyWriter;
+    private final DepartmentActiveSoftDeleteHandler softDeleteHandler;
 
     public DepartmentService(
             IDepartmentRepository departmentRepository,
             IUserDepartmentRepository userDepartmentRepository,
             UserRepository userRepository,
             DepartmentMapper departmentMapper,
-            ActionHistoryWriter historyWriter) {
+            ActionHistoryWriter historyWriter,
+            DepartmentActiveSoftDeleteHandler softDeleteHandler) {
         this.departmentRepository = departmentRepository;
         this.userDepartmentRepository = userDepartmentRepository;
         this.userRepository = userRepository;
         this.departmentMapper = departmentMapper;
         this.historyWriter = historyWriter;
+        this.softDeleteHandler = softDeleteHandler;
     }
 
     @Override
@@ -127,6 +132,65 @@ public class DepartmentService implements IDepartmentService {
         historyWriter.writeCreated("DEPARTMENT", saved.getId(), current);
         log.info("Department created id={} name={} by={}", saved.getId(), saved.getName(), current.getId());
         return departmentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public DepartmentResponse updateDepartment(Long id, UpdateDepartmentRequest request) {
+        User current = requireCurrentUser();
+        if (!isAdmin(current)) {
+            throw new AccessDeniedException("Only ADMIN can update departments");
+        }
+
+        Department department = departmentRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + id));
+
+        if (!department.isActive()) {
+            throw new BusinessException("Cannot update an inactive department");
+        }
+
+        if (request.getName() != null) {
+            String name = request.getName().trim();
+            if (departmentRepository.existsByNameIgnoreCaseAndActiveTrueAndIdNot(name, id)) {
+                throw new BusinessException("An active department with this name already exists");
+            }
+            String old = department.getName();
+            department.rename(name);
+            historyWriter.writeFieldChange("DEPARTMENT", id, "name", old, department.getName(), current);
+        }
+        if (request.getDescription() != null) {
+            String old = department.getDescription();
+            department.updateDescription(request.getDescription());
+            historyWriter.writeFieldChange(
+                    "DEPARTMENT", id, "description", old, department.getDescription(), current);
+        }
+
+        Department saved = departmentRepository.save(department);
+        log.info("Department updated id={} by={}", id, current.getId());
+        return departmentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDepartment(Long id) {
+        User current = requireCurrentUser();
+        if (!isAdmin(current)) {
+            throw new AccessDeniedException("Only ADMIN can delete departments");
+        }
+
+        Department department = departmentRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + id));
+
+        if (!department.isActive()) {
+            throw new ResourceNotFoundException("Department not found: " + id);
+        }
+
+        softDeleteHandler.softDelete(department);
+        departmentRepository.save(department);
+        historyWriter.writeDeleted("DEPARTMENT", id, current);
+        log.info("Department soft-deleted id={} by={}", id, current.getId());
     }
 
     private User requireCurrentUser() {

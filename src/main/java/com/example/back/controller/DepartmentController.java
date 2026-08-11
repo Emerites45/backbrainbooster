@@ -1,6 +1,7 @@
 package com.example.back.controller;
 
 import com.example.back.dto.request.CreateDepartmentRequest;
+import com.example.back.dto.request.UpdateDepartmentRequest;
 import com.example.back.dto.response.DepartmentResponse;
 import com.example.back.dto.response.DepartmentUserResponse;
 import com.example.back.dto.response.PageResponse;
@@ -15,7 +16,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/departments")
-@Tag(name = "Departments", description = "Départements + membres (MCD)")
+@Tag(name = "Departments", description = "CRUD départements + membres (MCD)")
 @SecurityRequirement(name = "bearerAuth")
 public class DepartmentController {
 
@@ -58,6 +61,22 @@ public class DepartmentController {
     @Operation(summary = "Détail d’un département")
     public ResponseEntity<DepartmentResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(departmentService.getDepartment(id));
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Mettre à jour un département (ADMIN)")
+    public ResponseEntity<DepartmentResponse> update(
+            @PathVariable Long id, @Valid @RequestBody UpdateDepartmentRequest request) {
+        return ResponseEntity.ok(departmentService.updateDepartment(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Désactiver un département — soft-delete active=false (ADMIN)")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        departmentService.deleteDepartment(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/users")
