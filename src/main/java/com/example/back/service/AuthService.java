@@ -97,6 +97,11 @@ public class AuthService {
             throw new RuntimeException("Erreur : Identifiants incorrects !");
         }
 
+        // 2b. Compte soft-deleted (INACTIVE) → refus de connexion
+        if (!user.isActive()) {
+            throw new RuntimeException("Erreur : Compte désactivé !");
+        }
+
         // 3. Génération du Token JWT crypté
         String jwtToken = jwtUtils.generateToken(user);
 

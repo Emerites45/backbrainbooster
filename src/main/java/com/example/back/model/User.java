@@ -3,6 +3,7 @@ package com.example.back.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -137,5 +138,45 @@ public class User {
 
     public void setDeletedAt(ZonedDateTime deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    /** Compte actif = pas de soft-delete ({@code date_suppression}). */
+    public boolean isActive() {
+        return deletedAt == null;
+    }
+
+    public void deactivate() {
+        if (this.deletedAt == null) {
+            this.deletedAt = ZonedDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    public void activate() {
+        this.deletedAt = null;
+    }
+
+    public void rename(String newName) {
+        if (newName == null || newName.isBlank()) {
+            throw new IllegalArgumentException("Name is required");
+        }
+        this.name = newName.trim();
+    }
+
+    public void changeEmail(String newEmail) {
+        if (newEmail == null || newEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        this.email = newEmail.trim().toLowerCase();
+    }
+
+    public void assignRole(String newRole) {
+        if (newRole == null || newRole.isBlank()) {
+            throw new IllegalArgumentException("Role is required");
+        }
+        String normalized = newRole.trim().toUpperCase();
+        if (!"ADMIN".equals(normalized) && !"USER".equals(normalized)) {
+            throw new IllegalArgumentException("Role must be ADMIN or USER");
+        }
+        this.role = normalized;
     }
 }
