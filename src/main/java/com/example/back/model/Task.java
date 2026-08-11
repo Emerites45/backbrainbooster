@@ -13,8 +13,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 /**
- * Agrégat TASK (MCD) — entité minimale pour listage sous projet.
- * CRUD / récursivité complets dans le module TASK.
+ * Agrégat TASK (MCD) — récursif (parent / root / level).
  */
 @Entity
 @Table(name = "task")
@@ -78,6 +77,7 @@ public class Task extends BaseEntity {
         this.status = TaskStatus.TODO;
         this.priority = TaskPriority.MEDIUM;
         this.level = 0;
+        this.orderIndex = 0;
     }
 
     public Task getParentTask() {
@@ -130,6 +130,46 @@ public class Task extends BaseEntity {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    public void rename(String title) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("title is required");
+        }
+        this.title = title.trim();
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    public void changeStatus(TaskStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("status is required");
+        }
+        this.status = status;
+    }
+
+    public void changePriority(TaskPriority priority) {
+        if (priority == null) {
+            throw new IllegalArgumentException("priority is required");
+        }
+        this.priority = priority;
+    }
+
+    public void changeDueDate(ZonedDateTime dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public void changeOrderIndex(int orderIndex) {
+        this.orderIndex = orderIndex;
+    }
+
+    /** Appliqué par {@code TaskTreeService} uniquement. */
+    public void applyHierarchy(Task parent, Task root, int level) {
+        this.parentTask = parent;
+        this.rootTask = root;
+        this.level = level;
     }
 
     public void softDelete() {
