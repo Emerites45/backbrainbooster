@@ -71,4 +71,11 @@ public class Comment extends BaseEntity {
             this.deletedAt = ZonedDateTime.now(ZoneOffset.UTC);
         }
     }
+
+    public void updateContent(String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("content is required");
+        }
+        this.content = content.trim();
+    }
 }

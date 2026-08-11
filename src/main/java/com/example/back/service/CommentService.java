@@ -3,6 +3,7 @@ package com.example.back.service;
 import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.domain.softdelete.CommentDeletedAtSoftDeleteHandler;
 import com.example.back.dto.request.CreateCommentRequest;
+import com.example.back.dto.request.UpdateCommentRequest;
 import com.example.back.dto.response.CommentResponse;
 import com.example.back.dto.response.PageResponse;
 import com.example.back.exception.BusinessException;
@@ -91,6 +92,46 @@ public class CommentService implements ICommentService {
                 saved.getId().toString(),
                 current);
         log.info("Comment={} created on task={} by={}", saved.getId(), taskId, current.getId());
+        return commentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CommentResponse getComment(Long commentId) {
+        User current = requireCurrentUser();
+        Comment comment = commentRepository
+                .findByIdAndNotDeleted(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found: " + commentId));
+        requireAccessibleTask(comment.getTask().getId(), current);
+        return commentMapper.toResponse(comment);
+    }
+
+    @Override
+    @Transactional
+    public CommentResponse updateComment(Long commentId, UpdateCommentRequest request) {
+        User current = requireCurrentUser();
+        Comment comment = commentRepository
+                .findByIdAndNotDeleted(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found: " + commentId));
+
+        requireAccessibleTask(comment.getTask().getId(), current);
+
+        boolean author = comment.getCreatedBy().getId().equals(current.getId());
+        if (!author && !isAdmin(current)) {
+            throw new BusinessException("Only the author or ADMIN can update this comment");
+        }
+
+        String old = comment.getContent();
+        comment.updateContent(request.getContent());
+        Comment saved = commentRepository.save(comment);
+        historyWriter.writeFieldChange(
+                "TASK",
+                comment.getTask().getId(),
+                "comment_content",
+                old,
+                saved.getContent(),
+                current);
+        log.info("Comment={} updated by={}", commentId, current.getId());
         return commentMapper.toResponse(saved);
     }
 
