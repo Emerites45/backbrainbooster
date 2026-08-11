@@ -1,5 +1,6 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.domain.softdelete.AttachmentDeletedAtSoftDeleteHandler;
 import com.example.back.domain.storage.FileStorage;
 import com.example.back.dto.response.AttachmentResponse;
@@ -39,6 +40,7 @@ public class AttachmentService implements IAttachmentService {
     private final AttachmentMapper attachmentMapper;
     private final AttachmentDeletedAtSoftDeleteHandler softDeleteHandler;
     private final FileStorage fileStorage;
+    private final ActionHistoryWriter historyWriter;
 
     public AttachmentService(
             IAttachmentRepository attachmentRepository,
@@ -47,7 +49,8 @@ public class AttachmentService implements IAttachmentService {
             UserRepository userRepository,
             AttachmentMapper attachmentMapper,
             AttachmentDeletedAtSoftDeleteHandler softDeleteHandler,
-            FileStorage fileStorage) {
+            FileStorage fileStorage,
+            ActionHistoryWriter historyWriter) {
         this.attachmentRepository = attachmentRepository;
         this.taskRepository = taskRepository;
         this.userDepartmentRepository = userDepartmentRepository;
@@ -55,6 +58,7 @@ public class AttachmentService implements IAttachmentService {
         this.attachmentMapper = attachmentMapper;
         this.softDeleteHandler = softDeleteHandler;
         this.fileStorage = fileStorage;
+        this.historyWriter = historyWriter;
     }
 
     @Override
@@ -107,6 +111,14 @@ public class AttachmentService implements IAttachmentService {
                 stored.size(),
                 current);
         Attachment saved = attachmentRepository.save(attachment);
+        historyWriter.write(
+                "TASK",
+                taskId,
+                "ATTACHMENT_ADDED",
+                "attachment_id",
+                null,
+                saved.getId().toString(),
+                current);
         log.info(
                 "Attachment={} uploaded on task={} by={} size={}",
                 saved.getId(),
@@ -128,6 +140,14 @@ public class AttachmentService implements IAttachmentService {
 
         softDeleteHandler.softDelete(attachment);
         attachmentRepository.save(attachment);
+        historyWriter.write(
+                "TASK",
+                attachment.getTask().getId(),
+                "ATTACHMENT_DELETED",
+                "attachment_id",
+                attachmentId.toString(),
+                null,
+                current);
         log.info("Attachment={} soft-deleted by={}", attachmentId, current.getId());
     }
 

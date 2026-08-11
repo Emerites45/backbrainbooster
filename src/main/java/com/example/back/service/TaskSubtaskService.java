@@ -1,5 +1,6 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.dto.request.CreateSubtaskRequest;
 import com.example.back.dto.response.PageResponse;
 import com.example.back.dto.response.TaskResponse;
@@ -31,18 +32,21 @@ public class TaskSubtaskService implements ITaskSubtaskService {
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
     private final TaskTreeService taskTreeService;
+    private final ActionHistoryWriter historyWriter;
 
     public TaskSubtaskService(
             ITaskRepository taskRepository,
             IUserDepartmentRepository userDepartmentRepository,
             UserRepository userRepository,
             TaskMapper taskMapper,
-            TaskTreeService taskTreeService) {
+            TaskTreeService taskTreeService,
+            ActionHistoryWriter historyWriter) {
         this.taskRepository = taskRepository;
         this.userDepartmentRepository = userDepartmentRepository;
         this.userRepository = userRepository;
         this.taskMapper = taskMapper;
         this.taskTreeService = taskTreeService;
+        this.historyWriter = historyWriter;
     }
 
     @Override
@@ -85,6 +89,15 @@ public class TaskSubtaskService implements ITaskSubtaskService {
 
         taskTreeService.attachUnder(child, parent);
         Task saved = taskRepository.save(child);
+        historyWriter.writeCreated("TASK", saved.getId(), current);
+        historyWriter.write(
+                "TASK",
+                parent.getId(),
+                "SUBTASK_CREATED",
+                "subtask_id",
+                null,
+                saved.getId().toString(),
+                current);
         log.info(
                 "Subtask created id={} parent={} project={} by={}",
                 saved.getId(),

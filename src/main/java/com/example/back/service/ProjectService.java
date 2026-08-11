@@ -1,5 +1,6 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.domain.softdelete.ProjectDeletedAtSoftDeleteHandler;
 import com.example.back.dto.request.CreateProjectRequest;
 import com.example.back.dto.request.UpdateProjectRequest;
@@ -41,6 +42,7 @@ public class ProjectService implements IProjectService {
     private final UserRepository userRepository;
     private final ProjectMapper projectMapper;
     private final ProjectDeletedAtSoftDeleteHandler softDeleteHandler;
+    private final ActionHistoryWriter historyWriter;
 
     public ProjectService(
             IProjectRepository projectRepository,
@@ -49,7 +51,8 @@ public class ProjectService implements IProjectService {
             ITaskRepository taskRepository,
             UserRepository userRepository,
             ProjectMapper projectMapper,
-            ProjectDeletedAtSoftDeleteHandler softDeleteHandler) {
+            ProjectDeletedAtSoftDeleteHandler softDeleteHandler,
+            ActionHistoryWriter historyWriter) {
         this.projectRepository = projectRepository;
         this.departmentRepository = departmentRepository;
         this.userDepartmentRepository = userDepartmentRepository;
@@ -57,6 +60,7 @@ public class ProjectService implements IProjectService {
         this.userRepository = userRepository;
         this.projectMapper = projectMapper;
         this.softDeleteHandler = softDeleteHandler;
+        this.historyWriter = historyWriter;
     }
 
     @Override
@@ -111,6 +115,7 @@ public class ProjectService implements IProjectService {
         }
 
         Project saved = projectRepository.save(project);
+        historyWriter.writeCreated("PROJECT", saved.getId(), current);
         log.info("Project created id={} dept={} by={}", saved.getId(), department.getId(), current.getId());
         return projectMapper.toResponse(saved);
     }
@@ -126,13 +131,21 @@ public class ProjectService implements IProjectService {
                     project.getDepartment().getId(), request.getName().trim(), id)) {
                 throw new BusinessException("A project with this name already exists in the department");
             }
+            String old = project.getName();
             project.rename(request.getName());
+            historyWriter.writeFieldChange("PROJECT", id, "name", old, project.getName(), current);
         }
         if (request.getDescription() != null) {
+            String old = project.getDescription();
             project.updateDescription(request.getDescription());
+            historyWriter.writeFieldChange(
+                    "PROJECT", id, "description", old, project.getDescription(), current);
         }
         if (request.getStatus() != null) {
+            String old = project.getStatus() != null ? project.getStatus().name() : null;
             project.changeStatus(request.getStatus());
+            historyWriter.writeFieldChange(
+                    "PROJECT", id, "status", old, project.getStatus().name(), current);
         }
 
         Project saved = projectRepository.save(project);
@@ -149,6 +162,7 @@ public class ProjectService implements IProjectService {
         softDeleteHandler.softDelete(project);
         projectRepository.save(project);
         taskRepository.softDeleteAllByProjectId(id);
+        historyWriter.writeDeleted("PROJECT", id, current);
         log.info("Project soft-deleted id={} by={}", id, current.getId());
     }
 

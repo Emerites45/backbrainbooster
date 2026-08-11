@@ -1,5 +1,6 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.dto.request.AssignTaskRequest;
 import com.example.back.dto.response.TaskAssigneeResponse;
 import com.example.back.exception.BusinessException;
@@ -31,18 +32,21 @@ public class TaskAssignmentService implements ITaskAssignmentService {
     private final IUserDepartmentRepository userDepartmentRepository;
     private final UserRepository userRepository;
     private final TaskAssignmentMapper assignmentMapper;
+    private final ActionHistoryWriter historyWriter;
 
     public TaskAssignmentService(
             ITaskAssignmentRepository assignmentRepository,
             ITaskRepository taskRepository,
             IUserDepartmentRepository userDepartmentRepository,
             UserRepository userRepository,
-            TaskAssignmentMapper assignmentMapper) {
+            TaskAssignmentMapper assignmentMapper,
+            ActionHistoryWriter historyWriter) {
         this.assignmentRepository = assignmentRepository;
         this.taskRepository = taskRepository;
         this.userDepartmentRepository = userDepartmentRepository;
         this.userRepository = userRepository;
         this.assignmentMapper = assignmentMapper;
+        this.historyWriter = historyWriter;
     }
 
     @Override
@@ -90,6 +94,14 @@ public class TaskAssignmentService implements ITaskAssignmentService {
 
         TaskAssignment assignment = new TaskAssignment(task, assignee, current, wantPrimary);
         TaskAssignment saved = assignmentRepository.save(assignment);
+        historyWriter.write(
+                "TASK",
+                taskId,
+                "ASSIGN",
+                "user_id",
+                null,
+                assignee.getId().toString(),
+                current);
         log.info(
                 "Assigned user={} to task={} primary={} by={}",
                 assignee.getId(),
@@ -112,6 +124,8 @@ public class TaskAssignmentService implements ITaskAssignmentService {
 
         assignment.unassign();
         assignmentRepository.save(assignment);
+        historyWriter.write(
+                "TASK", taskId, "UNASSIGN", "user_id", userId.toString(), null, current);
         log.info("Unassigned user={} from task={} by={}", userId, taskId, current.getId());
     }
 

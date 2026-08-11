@@ -1,5 +1,6 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.domain.softdelete.CommentDeletedAtSoftDeleteHandler;
 import com.example.back.dto.request.CreateCommentRequest;
 import com.example.back.dto.response.CommentResponse;
@@ -35,6 +36,7 @@ public class CommentService implements ICommentService {
     private final UserRepository userRepository;
     private final CommentMapper commentMapper;
     private final CommentDeletedAtSoftDeleteHandler softDeleteHandler;
+    private final ActionHistoryWriter historyWriter;
 
     public CommentService(
             ICommentRepository commentRepository,
@@ -42,13 +44,15 @@ public class CommentService implements ICommentService {
             IUserDepartmentRepository userDepartmentRepository,
             UserRepository userRepository,
             CommentMapper commentMapper,
-            CommentDeletedAtSoftDeleteHandler softDeleteHandler) {
+            CommentDeletedAtSoftDeleteHandler softDeleteHandler,
+            ActionHistoryWriter historyWriter) {
         this.commentRepository = commentRepository;
         this.taskRepository = taskRepository;
         this.userDepartmentRepository = userDepartmentRepository;
         this.userRepository = userRepository;
         this.commentMapper = commentMapper;
         this.softDeleteHandler = softDeleteHandler;
+        this.historyWriter = historyWriter;
     }
 
     @Override
@@ -78,6 +82,14 @@ public class CommentService implements ICommentService {
 
         Comment comment = new Comment(task, request.getContent(), current);
         Comment saved = commentRepository.save(comment);
+        historyWriter.write(
+                "TASK",
+                taskId,
+                "COMMENT_ADDED",
+                "comment_id",
+                null,
+                saved.getId().toString(),
+                current);
         log.info("Comment={} created on task={} by={}", saved.getId(), taskId, current.getId());
         return commentMapper.toResponse(saved);
     }
@@ -94,6 +106,14 @@ public class CommentService implements ICommentService {
 
         softDeleteHandler.softDelete(comment);
         commentRepository.save(comment);
+        historyWriter.write(
+                "TASK",
+                comment.getTask().getId(),
+                "COMMENT_DELETED",
+                "comment_id",
+                commentId.toString(),
+                null,
+                current);
         log.info("Comment={} soft-deleted by={}", commentId, current.getId());
     }
 

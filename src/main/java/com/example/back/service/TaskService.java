@@ -1,5 +1,6 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
 import com.example.back.dto.request.CreateTaskRequest;
 import com.example.back.dto.request.UpdateTaskRequest;
 import com.example.back.dto.request.UpdateTaskStatusRequest;
@@ -37,6 +38,7 @@ public class TaskService implements ITaskService {
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
     private final TaskTreeService taskTreeService;
+    private final ActionHistoryWriter historyWriter;
 
     public TaskService(
             ITaskRepository taskRepository,
@@ -44,13 +46,15 @@ public class TaskService implements ITaskService {
             IUserDepartmentRepository userDepartmentRepository,
             UserRepository userRepository,
             TaskMapper taskMapper,
-            TaskTreeService taskTreeService) {
+            TaskTreeService taskTreeService,
+            ActionHistoryWriter historyWriter) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userDepartmentRepository = userDepartmentRepository;
         this.userRepository = userRepository;
         this.taskMapper = taskMapper;
         this.taskTreeService = taskTreeService;
+        this.historyWriter = historyWriter;
     }
 
     @Override
@@ -114,6 +118,7 @@ public class TaskService implements ITaskService {
 
         Task saved = taskRepository.save(task);
         taskTreeService.ensureSelfRoot(saved);
+        historyWriter.writeCreated("TASK", saved.getId(), current);
         log.info("Task created id={} project={} by={}", saved.getId(), project.getId(), current.getId());
         return taskMapper.toResponse(saved);
     }
@@ -125,35 +130,67 @@ public class TaskService implements ITaskService {
         Task task = requireVisibleTask(id, current);
 
         if (request.getTitle() != null) {
+            String old = task.getTitle();
             task.rename(request.getTitle());
+            historyWriter.writeFieldChange("TASK", id, "title", old, task.getTitle(), current);
         }
         if (request.getDescription() != null) {
+            String old = task.getDescription();
             task.updateDescription(request.getDescription());
+            historyWriter.writeFieldChange("TASK", id, "description", old, task.getDescription(), current);
         }
         if (request.getStatus() != null) {
+            String old = task.getStatus() != null ? task.getStatus().name() : null;
             task.changeStatus(request.getStatus());
+            historyWriter.writeFieldChange(
+                    "TASK", id, "status", old, task.getStatus().name(), current);
         }
         if (request.getPriority() != null) {
+            String old = task.getPriority() != null ? task.getPriority().name() : null;
             task.changePriority(request.getPriority());
+            historyWriter.writeFieldChange(
+                    "TASK", id, "priority", old, task.getPriority().name(), current);
         }
         if (request.getOrderIndex() != null) {
+            String old = String.valueOf(task.getOrderIndex());
             task.changeOrderIndex(request.getOrderIndex());
+            historyWriter.writeFieldChange(
+                    "TASK", id, "order_index", old, String.valueOf(task.getOrderIndex()), current);
         }
         if (request.getDueDate() != null) {
+            String old = task.getDueDate() != null ? task.getDueDate().toString() : null;
             task.changeDueDate(request.getDueDate());
+            historyWriter.writeFieldChange(
+                    "TASK", id, "due_date", old, task.getDueDate().toString(), current);
         }
 
         boolean hierarchyChanged = false;
         if (Boolean.TRUE.equals(request.getClearParent())) {
+            Long oldParent = task.getParentTask() != null ? task.getParentTask().getId() : null;
             taskTreeService.makeRoot(task);
             hierarchyChanged = true;
+            historyWriter.writeFieldChange(
+                    "TASK",
+                    id,
+                    "parent_task_id",
+                    oldParent != null ? oldParent.toString() : null,
+                    null,
+                    current);
         } else if (request.getParentTaskId() != null) {
+            Long oldParent = task.getParentTask() != null ? task.getParentTask().getId() : null;
             Task parent = taskRepository
                     .findByIdAndNotDeleted(request.getParentTaskId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Parent task not found: " + request.getParentTaskId()));
             taskTreeService.attachUnder(task, parent);
             hierarchyChanged = true;
+            historyWriter.writeFieldChange(
+                    "TASK",
+                    id,
+                    "parent_task_id",
+                    oldParent != null ? oldParent.toString() : null,
+                    parent.getId().toString(),
+                    current);
         }
 
         Task saved = taskRepository.save(task);
@@ -171,6 +208,7 @@ public class TaskService implements ITaskService {
         User current = requireCurrentUser();
         Task task = requireVisibleTask(id, current);
         taskTreeService.softDeleteSubtree(task);
+        historyWriter.writeDeleted("TASK", id, current);
         log.info("Task subtree soft-deleted id={} by={}", id, current.getId());
     }
 
@@ -179,8 +217,11 @@ public class TaskService implements ITaskService {
     public TaskResponse updateStatus(Long id, UpdateTaskStatusRequest request) {
         User current = requireCurrentUser();
         Task task = requireVisibleTask(id, current);
+        String old = task.getStatus() != null ? task.getStatus().name() : null;
         task.changeStatus(request.getStatus());
         Task saved = taskRepository.save(task);
+        historyWriter.write(
+                "TASK", id, "STATUS_CHANGE", "status", old, saved.getStatus().name(), current);
         log.info("Task status id={} -> {}", id, saved.getStatus());
         return taskMapper.toResponse(saved);
     }
