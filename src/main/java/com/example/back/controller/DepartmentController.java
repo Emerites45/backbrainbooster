@@ -52,7 +52,7 @@ public class DepartmentController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by("name").ascending());
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by("user.name").ascending());
         return ResponseEntity.ok(departmentService.listDepartmentUsers(id, pageable));
     }
 }
