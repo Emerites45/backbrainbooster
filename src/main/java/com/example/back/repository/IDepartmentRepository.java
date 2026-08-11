@@ -22,5 +22,7 @@ public interface IDepartmentRepository {
 
     boolean existsById(Long id);
 
+    boolean existsByNameIgnoreCaseAndActiveTrue(String name);
+
     Department save(Department department);
 }

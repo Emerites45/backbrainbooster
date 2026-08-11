@@ -1,8 +1,11 @@
 package com.example.back.service;
 
+import com.example.back.domain.history.ActionHistoryWriter;
+import com.example.back.dto.request.CreateDepartmentRequest;
 import com.example.back.dto.response.DepartmentResponse;
 import com.example.back.dto.response.DepartmentUserResponse;
 import com.example.back.dto.response.PageResponse;
+import com.example.back.exception.BusinessException;
 import com.example.back.exception.ResourceNotFoundException;
 import com.example.back.mapper.DepartmentMapper;
 import com.example.back.model.Department;
@@ -14,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
 public class DepartmentService implements IDepartmentService {
 
     private static final Logger log = LoggerFactory.getLogger(DepartmentService.class);
@@ -30,19 +33,23 @@ public class DepartmentService implements IDepartmentService {
     private final IUserDepartmentRepository userDepartmentRepository;
     private final UserRepository userRepository;
     private final DepartmentMapper departmentMapper;
+    private final ActionHistoryWriter historyWriter;
 
     public DepartmentService(
             IDepartmentRepository departmentRepository,
             IUserDepartmentRepository userDepartmentRepository,
             UserRepository userRepository,
-            DepartmentMapper departmentMapper) {
+            DepartmentMapper departmentMapper,
+            ActionHistoryWriter historyWriter) {
         this.departmentRepository = departmentRepository;
         this.userDepartmentRepository = userDepartmentRepository;
         this.userRepository = userRepository;
         this.departmentMapper = departmentMapper;
+        this.historyWriter = historyWriter;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<DepartmentResponse> listDepartments(Pageable pageable, boolean includeInactive) {
         User current = requireCurrentUser();
         Page<Department> page;
@@ -53,7 +60,6 @@ public class DepartmentService implements IDepartmentService {
                     : departmentRepository.findAllByActiveTrue(pageable);
             log.debug("ADMIN list departments includeInactive={} page={}", includeInactive, pageable.getPageNumber());
         } else {
-            // Membres : uniquement départements où membership active
             page = departmentRepository.findActiveByMemberUserId(current.getId(), pageable);
             log.debug("Member list departments userId={} page={}", current.getId(), pageable.getPageNumber());
         }
@@ -62,6 +68,7 @@ public class DepartmentService implements IDepartmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DepartmentResponse getDepartment(Long id) {
         User current = requireCurrentUser();
         Department department = departmentRepository
@@ -81,6 +88,7 @@ public class DepartmentService implements IDepartmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<DepartmentUserResponse> listDepartmentUsers(Long departmentId, Pageable pageable) {
         User current = requireCurrentUser();
 
@@ -99,6 +107,26 @@ public class DepartmentService implements IDepartmentService {
 
         Page<User> users = userDepartmentRepository.findActiveUsersByDepartmentId(departmentId, pageable);
         return departmentMapper.toUserPage(users);
+    }
+
+    @Override
+    @Transactional
+    public DepartmentResponse createDepartment(CreateDepartmentRequest request) {
+        User current = requireCurrentUser();
+        if (!isAdmin(current)) {
+            throw new AccessDeniedException("Only ADMIN can create departments");
+        }
+
+        String name = request.getName().trim();
+        if (departmentRepository.existsByNameIgnoreCaseAndActiveTrue(name)) {
+            throw new BusinessException("An active department with this name already exists");
+        }
+
+        Department department = new Department(name, request.getDescription());
+        Department saved = departmentRepository.save(department);
+        historyWriter.writeCreated("DEPARTMENT", saved.getId(), current);
+        log.info("Department created id={} name={} by={}", saved.getId(), saved.getName(), current.getId());
+        return departmentMapper.toResponse(saved);
     }
 
     private User requireCurrentUser() {

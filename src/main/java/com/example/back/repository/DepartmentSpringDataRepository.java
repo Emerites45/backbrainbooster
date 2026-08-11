@@ -24,4 +24,11 @@ interface DepartmentSpringDataRepository extends JpaRepository<Department, Long>
               )
             """)
     Page<Department> findActiveByMemberUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("""
+            SELECT COUNT(d) > 0 FROM Department d
+            WHERE LOWER(d.name) = LOWER(:name)
+              AND d.active = true
+            """)
+    boolean existsByNameIgnoreCaseAndActiveTrue(@Param("name") String name);
 }
