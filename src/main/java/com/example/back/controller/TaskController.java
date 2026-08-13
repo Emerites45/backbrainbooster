@@ -1,11 +1,15 @@
 package com.example.back.controller;
+import java.util.List;
 
+import com.example.back.dto.request.AssignTaskRequest;
 import com.example.back.dto.request.CreateTaskRequest;
 import com.example.back.dto.request.UpdateTaskRequest;
 import com.example.back.dto.request.UpdateTaskStatusRequest;
 import com.example.back.dto.response.PageResponse;
+import com.example.back.dto.response.TaskAssigneeResponse;
 import com.example.back.dto.response.TaskResponse;
 import com.example.back.model.TaskStatus;
+import com.example.back.service.ITaskAssignmentService;
 import com.example.back.service.ITaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,9 +37,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class TaskController {
 
     private final ITaskService taskService;
-
-    public TaskController(ITaskService taskService) {
+    private final ITaskAssignmentService taskAssignmentService;
+    public TaskController(ITaskService taskService, ITaskAssignmentService taskAssignmentService) {
         this.taskService = taskService;
+        this.taskAssignmentService = taskAssignmentService;
     }
 
     @GetMapping
@@ -85,5 +90,46 @@ public class TaskController {
     public ResponseEntity<TaskResponse> updateStatus(
             @PathVariable Long id, @Valid @RequestBody UpdateTaskStatusRequest request) {
         return ResponseEntity.ok(taskService.updateStatus(id, request));
+    }
+    /*=============================================================
+    GET/api/v1/tasks/{id}/assignees 
+    ================================================================ */
+     @GetMapping("/{id}/assignees")
+     @Operation(
+    summary = "Lister les assignés d'une tâche",
+    description = "Retourne la liste des utilisateurs assignés à la tâche donnée."
+)
+    public ResponseEntity<List<TaskAssigneeResponse>> getTaskAssignees(@PathVariable Long id) {
+    return ResponseEntity.ok(taskAssignmentService.listAssignees(id));
+    }  
+    
+     /*=============================================================
+   POST /api/v1/tasks/{id}/assignees
+    ================================================================ */
+    @PostMapping("/{id}/assignees")
+    @Operation (
+        summary=" Assigner un utilisateur à une tâche",
+        description = "Assigne un utilisateur à la tâche donnée."
+    )
+    public ResponseEntity<TaskAssigneeResponse> assignTask(
+        @PathVariable Long id,
+        @Valid @RequestBody AssignTaskRequest request) {
+       return ResponseEntity.status(HttpStatus.CREATED)
+            .body(taskAssignmentService.assign(id, request));
+    }
+
+      /*=============================================================
+     delete /api/v1/tasks/{id}/assignees/{userId}
+    ================================================================ */
+    @DeleteMapping("/{id}/assignees/{userId}")
+    @Operation(
+        summary = "Désassigner un utilisateur d'une tâche",
+        description = "Désassigne un utilisateur de la tâche donnée."
+    )
+    public ResponseEntity<Void> unassignTask(
+            @PathVariable Long id,
+            @PathVariable Long userId) {
+        taskAssignmentService.unassign(id, userId);
+        return ResponseEntity.noContent().build();
     }
 }
