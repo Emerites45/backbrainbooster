@@ -44,9 +44,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             path = request.getRequestURI();
         }
 
-        // Routes publiques (Auth, Swagger, Emails public endpoints)
-        return path.startsWith("/api/v1/auth/") ||
-               path.startsWith("/api/auth/") ||
+        // Routes publiques uniquement (me / change-password passent par le filtre JWT)
+        return path.equals("/api/v1/auth/signup") ||
+               path.equals("/api/v1/auth/login") ||
+               path.equals("/api/v1/auth/forgot-password") ||
+               path.equals("/api/v1/auth/reset-password") ||
+               path.equals("/api/auth/signup") ||
+               path.equals("/api/auth/login") ||
+               path.equals("/api/auth/forgot-password") ||
+               path.equals("/api/auth/reset-password") ||
                path.startsWith("/api/emails/") ||
                path.startsWith("/v3/api-docs") ||
                path.startsWith("/swagger-ui");

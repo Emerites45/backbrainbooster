@@ -1,0 +1,214 @@
+{
+  "info": {
+    "name": "BrainBooster — DEPARTMENT module",
+    "description": "Tests module DEPARTMENT (GET list / detail / users). Auth JWT requis.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "departmentId", "value": "1" },
+    { "key": "email", "value": "demo.dept@example.com" },
+    { "key": "password", "value": "Secret123!" }
+  ],
+  "item": [
+    {
+      "name": "0. Auth — Signup",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Demo Dept\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/signup"
+      }
+    },
+    {
+      "name": "0. Auth — Login (sauver token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('login 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('token', json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "1. GET /departments (membre sans membership → vide)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('page envelope', () => {",
+              "  pm.expect(j).to.have.property('content');",
+              "  pm.expect(j).to.have.property('totalElements');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments?page=0&size=20"
+      }
+    },
+    {
+      "name": "2. GET /departments/{id} (sans membership → 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('404 sans membership', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments/{{departmentId}}"
+      }
+    },
+    {
+      "name": "3. GET /departments/{id}/users (sans membership → 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments/{{departmentId}}/users?page=0&size=20"
+      }
+    },
+    {
+      "name": "4. GET /departments sans token → 401/403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('non autorisé', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/departments"
+      }
+    },
+    {
+      "name": "5. GET /departments/{id} id inexistant → 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments/999999"
+      }
+    },
+    {
+      "name": "6. GET /departments (après seed ADMIN ou membership)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('au moins 1 dept après seed', () => pm.expect(j.totalElements).to.be.above(0));",
+              "if (j.content && j.content.length) {",
+              "  pm.collectionVariables.set('departmentId', String(j.content[0].id));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments?page=0&size=20&includeInactive=false"
+      }
+    },
+    {
+      "name": "7. GET /departments/{id} (après seed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('champs', () => {",
+              "  pm.expect(j).to.have.property('id');",
+              "  pm.expect(j).to.have.property('name');",
+              "  pm.expect(j).to.have.property('active');",
+              "  pm.expect(j).to.have.property('createdAt');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments/{{departmentId}}"
+      }
+    },
+    {
+      "name": "8. GET /departments/{id}/users (après seed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('envelope users', () => pm.expect(j).to.have.property('content'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/v1/departments/{{departmentId}}/users?page=0&size=20"
+      }
+    }
+  ]
+}
