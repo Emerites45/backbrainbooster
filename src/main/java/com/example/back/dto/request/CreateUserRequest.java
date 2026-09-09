@@ -2,58 +2,51 @@ package com.example.back.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import java.util.List;
+import java.util.Set;
 
 public class CreateUserRequest {
 
-    @NotBlank(message = "Le nom est obligatoire")
-    @Size(min = 2, max = 100, message = "Le nom doit contenir entre 2 et 100 caractères")
     private String name;
+    private String firstName;
+    private String lastName;
 
-    @NotBlank(message = "L'adresse email est obligatoire")
-    @Email(message = "Le format de l'adresse email est invalide")
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
     private String email;
 
-    @NotBlank(message = "Le mot de passe est obligatoire")
-    @Size(min = 6, message = "Le mot de passe doit contenir au moins 6 caractères")
+    @NotBlank(message = "Password is required")
     private String password;
 
-    @Pattern(regexp = "(?i)ADMIN|USER", message = "Role must be ADMIN or USER")
-    private String role = "USER";
+    private String role;
+    private Set<String> globalRoles;
+    private List<DepartmentRoleRequest> departmentRoles;
+    private Boolean mustChangePassword;
 
-    public CreateUserRequest() {
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public String getName() {
-        return name;
-    }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
 
-    public String getEmail() {
-        return email;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public Set<String> getGlobalRoles() { return globalRoles; }
+    public void setGlobalRoles(Set<String> globalRoles) { this.globalRoles = globalRoles; }
 
-    public String getRole() {
-        return role;
-    }
+    public List<DepartmentRoleRequest> getDepartmentRoles() { return departmentRoles; }
+    public void setDepartmentRoles(List<DepartmentRoleRequest> departmentRoles) { this.departmentRoles = departmentRoles; }
 
-    public void setRole(String role) {
-        this.role = role;
-    }
+    public Boolean getMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(Boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 }

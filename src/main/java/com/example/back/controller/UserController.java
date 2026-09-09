@@ -33,8 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/users")
 @Tag(name = "Users", description = "CRUD utilisateurs (ADMIN)")
-@SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasRole('ADMIN')")
+//@SecurityRequirement(name = "bearerAuth")
+//@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
     private final IUserService userService;

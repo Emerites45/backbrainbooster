@@ -2,6 +2,7 @@ package com.example.back.service;
 
 import com.example.back.domain.softdelete.UserDeletedAtSoftDeleteHandler;
 import com.example.back.dto.request.CreateUserRequest;
+import com.example.back.dto.request.DepartmentRoleRequest;
 import com.example.back.dto.request.UpdateUserRequest;
 import com.example.back.dto.request.UpdateUserStatusRequest;
 import com.example.back.dto.response.PageResponse;
@@ -9,8 +10,10 @@ import com.example.back.dto.response.UserResponse;
 import com.example.back.exception.BusinessException;
 import com.example.back.exception.ResourceNotFoundException;
 import com.example.back.mapper.UserMapper;
+import com.example.back.model.Department;
 import com.example.back.model.User;
 import com.example.back.model.UserStatus;
+import com.example.back.repository.IDepartmentRepository;
 import com.example.back.repository.IUserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,16 +29,19 @@ public class UserService implements IUserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     private final IUserRepository userRepository;
+    private final IDepartmentRepository departmentRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final UserDeletedAtSoftDeleteHandler softDeleteHandler;
 
     public UserService(
             IUserRepository userRepository,
+            IDepartmentRepository departmentRepository,
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
             UserDeletedAtSoftDeleteHandler softDeleteHandler) {
         this.userRepository = userRepository;
+        this.departmentRepository = departmentRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.softDeleteHandler = softDeleteHandler;
@@ -63,13 +69,35 @@ public class UserService implements IUserService {
         }
 
         User user = new User(
-                request.getName().trim(),
+                request.getFirstName(),
+                request.getLastName(),
                 email,
                 passwordEncoder.encode(request.getPassword()));
-        user.assignRole(request.getRole() == null ? "USER" : request.getRole());
+
+        if (request.getName() != null && (request.getFirstName() == null || request.getLastName() == null)) {
+            user.rename(request.getName());
+        }
+
+        if (request.getGlobalRoles() != null && !request.getGlobalRoles().isEmpty()) {
+            request.getGlobalRoles().forEach(user::addGlobalRole);
+        } else if (request.getRole() != null) {
+            user.assignRole(request.getRole());
+        }
+
+        if (request.getMustChangePassword() != null) {
+            user.setMustChangePassword(request.getMustChangePassword());
+        }
+
+        if (request.getDepartmentRoles() != null && !request.getDepartmentRoles().isEmpty()) {
+            for (DepartmentRoleRequest dr : request.getDepartmentRoles()) {
+                Department dept = departmentRepository.findById(dr.getDepartmentId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + dr.getDepartmentId()));
+                user.addDepartmentRole(dept, dr.getRole());
+            }
+        }
 
         User saved = userRepository.save(user);
-        log.info("User created id={} email={} role={}", saved.getId(), saved.getEmail(), saved.getRole());
+        log.info("User created id={} email={} globalRoles={}", saved.getId(), saved.getEmail(), saved.getGlobalRoles());
         return userMapper.toResponse(saved);
     }
 
@@ -78,9 +106,12 @@ public class UserService implements IUserService {
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
         User user = requireUser(id);
 
-        if (request.getName() != null) {
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getName() != null && request.getFirstName() == null && request.getLastName() == null) {
             user.rename(request.getName());
         }
+
         if (request.getEmail() != null) {
             String email = request.getEmail().trim().toLowerCase();
             if (userRepository.existsByEmailAndIdNot(email, id)) {
@@ -88,8 +119,25 @@ public class UserService implements IUserService {
             }
             user.changeEmail(email);
         }
-        if (request.getRole() != null) {
+
+        if (request.getGlobalRoles() != null) {
+            user.getGlobalRoles().clear();
+            request.getGlobalRoles().forEach(user::addGlobalRole);
+        } else if (request.getRole() != null) {
             user.assignRole(request.getRole());
+        }
+
+        if (request.getMustChangePassword() != null) {
+            user.setMustChangePassword(request.getMustChangePassword());
+        }
+
+        if (request.getDepartmentRoles() != null) {
+            user.clearDepartmentRoles();
+            for (DepartmentRoleRequest dr : request.getDepartmentRoles()) {
+                Department dept = departmentRepository.findById(dr.getDepartmentId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + dr.getDepartmentId()));
+                user.addDepartmentRole(dept, dr.getRole());
+            }
         }
 
         User saved = userRepository.save(user);
